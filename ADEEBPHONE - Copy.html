@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>منظومة الطلاب الذكية - النسخة الشاملة</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        :root { --primary: #2c3e50; --accent: #3498db; --success: #27ae60; }
+        body { background: #f4f7f6; font-family: 'Segoe UI', Tahoma, sans-serif; padding: 10px; padding-bottom: 50px; }
+        .main-card { border-radius: 15px; border: none; box-shadow: 0 5px 20px rgba(0,0,0,0.1); background: white; margin-bottom: 20px; }
+        .table-container { background: white; border-radius: 15px; padding: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); }
+        .student-photo { width: 55px; height: 55px; border-radius: 8px; object-fit: cover; border: 2px solid var(--accent); }
+        #video { width: 100%; max-width: 250px; border-radius: 10px; display: none; margin: 10px auto; border: 3px solid var(--accent); }
+        #canvas { display: none; }
+        
+        @media print {
+            .no-print { display: none !important; }
+            #printContainer { display: block !important; }
+            .seat-card { 
+                width: 95%; min-height: 500px; border: 3px solid #000; 
+                margin: 10px auto; padding: 20px; position: relative; font-size: 16px;
+            }
+            .card-img { width: 120px; height: 140px; border: 2px solid #000; float: left; }
+            .sub-table { width: 100%; border-collapse: collapse; mt-3; }
+            .sub-table th, .sub-table td { border: 1px solid black; padding: 5px; text-align: center; }
+        }
+        #printContainer { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container no-print">
+    <h2 class="text-center mb-4 text-primary fw-bold">منظومة الطلاب - نسخة الهاتف والكاميرا</h2>
+
+    <div class="d-flex justify-content-center gap-2 mb-3 flex-wrap">
+        <button onclick="document.getElementById('importCSVFile').click()" class="btn btn-sm btn-success">📥 استيراد CSV</button>
+        <button onclick="exportJSON()" class="btn btn-sm btn-primary">📤 تصدير نسخة</button>
+        <button onclick="clearAllData()" class="btn btn-sm btn-danger">🗑️ مسح الكل</button>
+        <input type="file" id="importCSVFile" hidden accept=".csv" onchange="importCSV(event)">
+    </div>
+
+    <div class="card main-card p-4 shadow">
+        <form id="studentForm" class="row g-3">
+            <input type="hidden" id="editIndex" value="-1">
+            
+            <div class="col-md-5 col-12"><label class="fw-bold">اسم الطالب</label><input type="text" id="stuName" class="form-control border-primary"></div>
+            <div class="col-md-3 col-6"><label class="fw-bold">الكود</label><input type="text" id="stuID" class="form-control border-primary"></div>
+            <div class="col-md-4 col-6"><label class="fw-bold">رقم الجلوس</label><input type="text" id="stuSeat" class="form-control border-primary"></div>
+            
+            <div class="col-md-3 col-6">
+                <label class="fw-bold">التخصص</label>
+                <select id="stuMajor" class="form-select border-primary">
+                    <option value="محاصيل">محاصيل</option><option value="بساتين">بساتين</option>
+                    <option value="تصنيع">تصنيع</option><option value="معمل">معمل</option>
+                </select>
+            </div>
+            <div class="col-md-3 col-6">
+                <label class="fw-bold">الجدارات</label>
+                <select id="stuComp" class="form-select border-primary bg-light">
+                    <option value="جدير" selected>جدير</option>
+                    <option value="غير جدير">غير جدير</option>
+                    <option value="غياب">غياب</option>
+                </select>
+            </div>
+            <div class="col-md-3 col-6">
+                <label class="fw-bold">النظرى</label>
+                <select id="stuTheory" class="form-select border-primary bg-light">
+                    <option value="حضور" selected>حضور</option>
+                    <option value="غياب">غياب</option>
+                </select>
+            </div>
+            <div class="col-md-3 col-6"><label class="fw-bold">الهاتف</label><input type="text" id="stuPhone" class="form-control border-primary"></div>
+            <div class="col-12"><label class="fw-bold">العنوان</label><input type="text" id="stuAddress" class="form-control border-primary"></div>
+
+            <hr>
+            <div class="col-12 text-center bg-light p-3 rounded shadow-sm">
+                <label class="d-block fw-bold mb-2">صورة الطالب 📷</label>
+                <video id="video" autoplay playsinline></video>
+                <canvas id="canvas"></canvas>
+                <img id="photoPreview" src="https://via.placeholder.com/100" class="student-photo mb-2" style="width:120px; height:120px;">
+                <div class="d-flex justify-content-center gap-2 mt-2">
+                    <button type="button" onclick="startCamera()" class="btn btn-outline-dark btn-sm">فتح الكاميرا</button>
+                    <button type="button" id="snap" onclick="takeSnapshot()" class="btn btn-primary btn-sm" style="display:none;">التقاط الصورة</button>
+                </div>
+                <input type="hidden" id="stuPhotoData">
+            </div>
+
+            <hr>
+            <h6 class="fw-bold text-primary">المواد الدراسية والمدرسين:</h6>
+            <div id="subjectsContainer" class="row g-2">
+                </div>
+
+            <div class="col-12 text-center mt-4">
+                <button type="button" id="btnAction" onclick="saveStudent()" class="btn btn-success w-100 py-3 fw-bold shadow">حفظ البيانات</button>
+                <button type="button" onclick="resetForm()" class="btn btn-outline-secondary w-100 mt-2">طالب جديد</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="table-container mt-4">
+        <input type="text" id="searchInput" onkeyup="search()" class="form-control form-control-lg border-primary mb-3" placeholder="🔍 ابحث بالاسم أو رقم الجلوس..">
+        <div id="studentsList">
+            </div>
+    </div>
+</div>
+
+<div id="printContainer"></div>
+
+<script>
+    let students = JSON.parse(localStorage.getItem('stu_final_db_v5')) || [];
+    
+    // توليد خانات المواد
+    const subContainer = document.getElementById('subjectsContainer');
+    for(let i=1; i<=5; i++) {
+        subContainer.innerHTML += `
+            <div class="col-6"><input type="text" id="sub${i}" placeholder="اسم المادة ${i}" class="form-control form-control-sm border-info"></div>
+            <div class="col-6"><input type="text" id="teach${i}" placeholder="اسم المدرس ${i}" class="form-control form-control-sm border-info"></div>
+        `;
+    }
+
+    window.onload = render;
+
+    // --- وظائف الكاميرا ---
+    async function startCamera() {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+            const video = document.getElementById('video');
+            video.srcObject = stream;
+            video.style.display = 'block';
+            document.getElementById('snap').style.display = 'inline-block';
+            document.getElementById('photoPreview').style.display = 'none';
+        } catch (err) { alert("تعذر فتح الكاميرا: " + err); }
+    }
+
+    function takeSnapshot() {
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        canvas.getContext('2d').drawImage(video, 0, 0);
+        const data = canvas.toDataURL('image/jpeg', 0.7);
+        document.getElementById('stuPhotoData').value = data;
+        document.getElementById('photoPreview').src = data;
+        document.getElementById('photoPreview').style.display = 'block';
+        video.style.display = 'none';
+        document.getElementById('snap').style.display = 'none';
+        video.srcObject.getTracks().forEach(track => track.stop());
+    }
+
+    function saveStudent() {
+        const idx = document.getElementById('editIndex').value;
+        const subData = [];
+        for(let i=1; i<=5; i++) {
+            subData.push({ s: document.getElementById(`sub${i}`).value, t: document.getElementById(`teach${i}`).value });
+        }
+
+        const student = {
+            name: document.getElementById('stuName').value,
+            id: document.getElementById('stuID').value,
+            seat: document.getElementById('stuSeat').value,
+            major: document.getElementById('stuMajor').value,
+            comp: document.getElementById('stuComp').value,
+            theory: document.getElementById('stuTheory').value,
+            phone: document.getElementById('stuPhone').value,
+            address: document.getElementById('stuAddress').value,
+            photo: document.getElementById('stuPhotoData').value || 'https://via.placeholder.com/100',
+            subjects: subData
+        };
+
+        if(!student.name) return alert("الاسم مطلوب");
+        if(idx == "-1") students.push(student); else students[idx] = student;
+        update();
+    }
+
+    function render() {
+        const list = document.getElementById('studentsList');
+        list.innerHTML = students.map((s, i) => `
+            <div class="card mb-3 p-2 shadow-sm border-start border-primary border-4" onclick="fillFields(${i})">
+                <div class="d-flex align-items-center">
+                    <img src="${
